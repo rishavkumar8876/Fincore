@@ -4,7 +4,9 @@ import bcrypt from 'bcryptjs';
 import { pool } from './pool';
 
 export async function runSeed(): Promise<void> {
-  const sysSeedPath = path.resolve(__dirname, '../../../../database/seeds/001_system_accounts.sql');
+  const containerSeed = path.resolve(process.cwd(), 'database/seeds/001_system_accounts.sql');
+  const localSeed = path.resolve(__dirname, '../../../../database/seeds/001_system_accounts.sql');
+  const sysSeedPath = fs.existsSync(containerSeed) ? containerSeed : localSeed;
   const sysSql = fs.readFileSync(sysSeedPath, 'utf8');
   await pool.query(sysSql);
 

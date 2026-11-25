@@ -3,7 +3,9 @@ import path from 'path';
 import { pool } from './pool';
 
 export async function runMigrations(): Promise<void> {
-  const migrationsDir = path.resolve(__dirname, '../../../../database/migrations');
+  const containerDir = path.resolve(process.cwd(), 'database/migrations');
+  const localDir = path.resolve(__dirname, '../../../../database/migrations');
+  const migrationsDir = fs.existsSync(containerDir) ? containerDir : localDir;
   const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort();
 
   await pool.query(`
