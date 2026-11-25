@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: FinCore Financial REST API (Simulated Sandbox)
+  version: 1.0.0
+  description: |
+    Core financial REST API for FinCore's simulated digital wallet, double-entry ledger,
+    sandbox payment intents, webhooks, disputes, and operations console.
+    All monetary operations use synthetic data and test-mode providers only.
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Unique client-generated key ensuring safe retries without duplicate debits/credits.
+paths:
+  /auth/register:
+    post:
+      summary: Register a simulated customer account and default USD wallet
+      responses:
+        '201': { description: Account created }
+        '409': { description: Email already exists }
+  /auth/login:
+    post:
+      summary: Authenticate with email/password and optional simulated MFA code (123456)
+      responses:
+        '200': { description: JWT access + refresh tokens or MFA challenge }
+        '401': { description: Invalid credentials }
+  /auth/reauth:
+    post:
+      summary: Issue single-use scoped re-authentication token for sensitive actions
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Reauth token issued }
+  /wallets:
+    get:
+      summary: List wallets (customer sees own; staff sees all)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: List of wallet accounts }
+  /wallets/deposit:
+    post:
+      summary: Credit simulated sandbox funds into a wallet
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '201': { description: Deposit completed }
+  /wallets/{id}/statement:
+    get:
+      summary: Retrieve wallet statement in JSON or CSV format (?format=csv)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: format
+          in: query
+          schema: { type: string, enum: [json, csv] }
+      responses:
+        '200': { description: Statement data or CSV download }
+  /transfers:
+    get:
+      summary: Paginated transaction history
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Transaction list }
+    post:
+      summary: Execute atomic double-entry wallet transfer
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '201': { description: Transfer completed }
+        '200': { description: Idempotent replay of existing transaction }
+        '422': { description: Insufficient funds }
+  /transfers/{id}/reverse:
+    post:
+      summary: Reverse a completed transaction (finance_admin / platform_admin only)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201': { description: Reversal completed }
+        '403': { description: Forbidden for non-admin roles }
+  /payments/intents:
+    post:
+      summary: Create sandbox payment intent
+      security: [{ BearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '201': { description: Payment intent created }
+  /payments/webhooks/sandbox:
+    post:
+      summary: Receive HMAC-SHA256 signed sandbox payment webhook with event_id deduplication
+      responses:
+        '200': { description: Processed or ignored_duplicate }
+        '401': { description: Invalid HMAC signature }
+  /ops/disputes:
+    get:
+      summary: List disputes
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Dispute list }
+    post:
+      summary: Open a transaction dispute
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Dispute created }
+  /ops/risk-alerts:
+    get:
+      summary: List decision-support risk alerts (operations_analyst+)
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Risk alerts with decision-support disclaimer }

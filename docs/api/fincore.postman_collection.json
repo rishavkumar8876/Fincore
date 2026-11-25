@@ -1,0 +1,56 @@
+{
+  "info": {
+    "name": "FinCore Sandbox API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login (Alice Customer)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"alice.customer@fincore.sim\",\n  \"password\": \"FinCore!Demo2026\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Wallets - List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/wallets"
+      }
+    },
+    {
+      "name": "Transfers - Create (Idempotent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Idempotency-Key", "value": "pm-transfer-001" }
+        ],
+        "url": "{{baseUrl}}/transfers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sourceAccountId\": \"<SOURCE_WALLET_UUID>\",\n  \"destinationAccountNumber\": \"FC-1001-0002\",\n  \"amount\": \"25.00\",\n  \"description\": \"Postman test transfer\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Ops - Risk Alerts",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/ops/risk-alerts"
+      }
+    }
+  ]
+}

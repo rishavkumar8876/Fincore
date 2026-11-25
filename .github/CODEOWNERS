@@ -1,0 +1,5 @@
+# Require senior/finance engineering review on ledger, math, and schema migrations (Assessment 10)
+/database/migrations/       @fincore-finance-leads
+/apps/api/src/services/ledgerService.ts @fincore-finance-leads
+/apps/analytics/app/finance_math.py     @fincore-finance-leads
+/.github/workflows/         @fincore-platform-leads
