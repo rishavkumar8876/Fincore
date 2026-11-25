@@ -49,7 +49,8 @@ describe('FinCore Customer Dashboard (Assessment 01)', () => {
     expect(screen.getByText(/active · SIMULATED/i)).toBeInTheDocument();
     expect(screen.getByText('TX-ABC123')).toBeInTheDocument();
 
-    // Submit empty transfer form -> shows validation error
+    // Switch to Send Money tab and submit empty transfer form -> shows validation error
+    fireEvent.click(screen.getAllByRole('button', { name: /^Send Money$/i })[0]);
     fireEvent.click(screen.getByRole('button', { name: /Submit Transfer/i }));
     expect(screen.getByText(/Enter destination account number/i)).toBeInTheDocument();
   });
