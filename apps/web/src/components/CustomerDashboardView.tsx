@@ -10,14 +10,13 @@ import {
   Copy,
   Check,
   Download,
-  PlusCircle,
+  Plus,
   AlertTriangle,
   Users,
   Search,
   Send,
   X,
   CreditCard,
-  TrendingUp,
   RefreshCw,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
@@ -41,8 +40,6 @@ export interface TransactionItem {
   fee_amount: string;
   description: string;
   created_at: string;
-  source_account_id?: string;
-  destination_account_id?: string;
 }
 
 export interface BeneficiaryItem {
@@ -82,11 +79,9 @@ export function CustomerDashboardView({
   const [copiedAcc, setCopiedAcc] = useState<string | null>(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
 
-  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
-  // Forms
   const [srcWalletId, setSrcWalletId] = useState(initialWallets[0]?.id || '');
   const [destAccNum, setDestAccNum] = useState('');
   const [amount, setAmount] = useState('');
@@ -132,16 +127,16 @@ export function CustomerDashboardView({
   );
 
   const stats = useMemo(() => {
-    let deposits = 0;
-    let transfers = 0;
+    let inflows = 0;
+    let outflows = 0;
     let fees = 0;
     for (const t of transactions) {
       const amt = Number(t.amount || 0);
       fees += Number(t.fee_amount || 0);
-      if (t.type === 'deposit' || t.type === 'refund') deposits += amt;
-      else transfers += amt;
+      if (t.type === 'deposit' || t.type === 'refund') inflows += amt;
+      else outflows += amt;
     }
-    return { deposits, transfers, fees };
+    return { inflows, outflows, fees };
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
@@ -184,16 +179,15 @@ export function CustomerDashboardView({
     }
     setSubmitting(true);
     try {
-      const idemKey = `web-tx-${crypto.randomUUID()}`;
       await apiFetch('/transfers', {
         method: 'POST',
         token,
-        idempotencyKey: idemKey,
+        idempotencyKey: `web-tx-${crypto.randomUUID()}`,
         body: JSON.stringify(parsed.data),
       });
       setAmount('');
       setDescription('');
-      notify('ok', 'Transfer completed atomically and recorded in the double-entry ledger.');
+      notify('ok', 'Transfer completed and recorded in the double-entry ledger.');
       setActiveTab('overview');
       await loadData();
     } catch (err) {
@@ -215,7 +209,7 @@ export function CustomerDashboardView({
         body: JSON.stringify({ accountId: srcWalletId, amount: depositAmount, description: 'Sandbox top-up' }),
       });
       setShowDepositModal(false);
-      notify('ok', `Simulated deposit of $${depositAmount} credited to your wallet.`);
+      notify('ok', `Simulated deposit of $${depositAmount} credited.`);
       await loadData();
     } catch (err) {
       notify('err', err instanceof Error ? err.message : 'Deposit failed');
@@ -272,18 +266,18 @@ export function CustomerDashboardView({
 
   if (!authed) {
     return (
-      <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-slate-900/80 p-10 text-center shadow-2xl backdrop-blur">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 text-slate-950">
+      <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
           <CreditCard className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-bold text-white">Welcome to FinCore Simulated Wallet</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Sign in with a synthetic customer or operations account to explore interactive wallet cards, double-entry
-          transfers, live cashflow analytics, disputes, and risk alerts.
+        <h1 className="text-2xl font-bold text-slate-900">Welcome to FinCore Simulated Wallet</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Sign in with a synthetic customer or operations account to inspect wallets, double-entry ledger entries,
+          transfers, disputes, and risk analytics.
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 hover:brightness-110"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
         >
           Go to Sign In
           <ArrowUpRight className="h-4 w-4" />
@@ -294,54 +288,50 @@ export function CustomerDashboardView({
 
   return (
     <div className="space-y-6">
-      {/* Floating Toast Notification */}
+      {/* Toast Notification */}
       {feedback && (
         <div
           role="status"
-          className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-medium shadow-2xl backdrop-blur-xl ${
+          className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-medium shadow-lg ${
             feedback.type === 'ok'
-              ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-200'
-              : 'border-rose-500/40 bg-rose-950/90 text-rose-200'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              : 'border-rose-200 bg-rose-50 text-rose-900'
           }`}
         >
           <span>{feedback.msg}</span>
-          <button onClick={() => setFeedback(null)} className="text-white/60 hover:text-white">
+          <button onClick={() => setFeedback(null)} className="text-slate-400 hover:text-slate-700">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* Top Hero Row */}
+      {/* Mercury-Style Header & Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Good day, {user?.fullName?.split(' ')[0] || 'Customer'}
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Welcome, {user?.fullName?.split(' ')[0] || 'Customer'}
           </h1>
-          <p className="text-xs text-slate-400">
-            Total Simulated Balance:{' '}
-            <span className="font-semibold text-emerald-400">${totalAvailable.toFixed(2)} USD</span>
-          </p>
+          <p className="text-xs text-slate-500">FinCore Simulated Treasury &amp; Wallet Overview</p>
         </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('transfer')}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3.5 py-2 text-xs font-semibold text-slate-950 shadow-md shadow-emerald-500/20 transition hover:brightness-110"
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
           >
             <Send className="h-3.5 w-3.5" />
             Send Money
           </button>
           <button
             onClick={() => setShowDepositModal(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3.5 py-2 text-xs font-medium text-sky-300 transition hover:bg-sky-500/20"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
           >
-            <PlusCircle className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5" />
             Add Test Funds
           </button>
           {srcWalletId && (
             <button
               onClick={handleExportStatement}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-900 px-3.5 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
@@ -350,110 +340,143 @@ export function CustomerDashboardView({
           <button
             onClick={loadData}
             title="Refresh"
-            className="rounded-lg border border-white/10 bg-slate-900 p-2 text-slate-400 hover:text-white"
+            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 shadow-sm hover:text-slate-800"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Virtual Wallet Cards + KPI Summary */}
-      <section className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-7 grid gap-4 sm:grid-cols-2">
-          {wallets.map((w) => (
-            <div
-              key={w.id}
-              onClick={() => setSrcWalletId(w.id)}
-              className={`cursor-pointer rounded-2xl border p-5 transition-all ${
-                srcWalletId === w.id
-                  ? 'border-emerald-500/50 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 shadow-lg shadow-emerald-500/10'
-                  : 'border-white/10 bg-slate-900/70 hover:border-white/25'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyAccountNumber(w.account_number);
-                  }}
-                  className="flex items-center gap-1.5 rounded-md bg-white/5 px-2 py-1 text-[11px] font-mono text-slate-300 hover:bg-white/10"
-                >
-                  {w.account_number}
-                  {copiedAcc === w.account_number ? (
-                    <Check className="h-3 w-3 text-emerald-400" />
-                  ) : (
-                    <Copy className="h-3 w-3 text-slate-400" />
-                  )}
-                </button>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                    w.status === 'active'
-                      ? 'bg-emerald-500/15 text-emerald-300'
-                      : 'bg-rose-500/15 text-rose-300'
-                  }`}
-                >
-                  {w.status} · SIMULATED
-                </span>
-              </div>
-              <div className="mt-5 text-3xl font-bold tracking-tight text-white">
-                ${Number(w.available_balance).toFixed(2)}{' '}
-                <span className="text-xs font-normal text-slate-400">{w.currency}</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Ledger: ${Number(w.balance).toFixed(2)}</span>
-                {srcWalletId === w.id && <span className="text-emerald-400 font-medium">Active Wallet</span>}
+      {/* Bento Top Row: Net Balance + Cashflow Chart + Wallets */}
+      <section className="grid gap-5 lg:grid-cols-12">
+        {/* Net Balance & Interactive SVG Cashflow Chart */}
+        <div className="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs font-medium text-slate-500">Total Simulated Balance</div>
+              <div className="mt-1 text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
+                ${totalAvailable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                <span className="text-sm font-medium text-slate-400">USD</span>
               </div>
             </div>
-          ))}
+            <div className="flex gap-4 text-right text-xs">
+              <div>
+                <div className="flex items-center justify-end gap-1 text-slate-500">
+                  <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600" />
+                  Inflows
+                </div>
+                <div className="font-semibold text-emerald-600 tabular-nums">+${stats.inflows.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="flex items-center justify-end gap-1 text-slate-500">
+                  <ArrowUpRight className="h-3.5 w-3.5 text-slate-600" />
+                  Outflows
+                </div>
+                <div className="font-semibold text-slate-900 tabular-nums">-${stats.outflows.toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Clean Mercury-style SVG Cashflow Sparkline */}
+          <div className="mt-6">
+            <svg viewBox="0 0 400 80" className="w-full h-20 overflow-visible">
+              <defs>
+                <linearGradient id="fcArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.18" />
+                  <stop offset="100%" stopColor="#4F46E5" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,65 C60,60 90,45 140,48 C190,51 220,25 270,30 C320,35 360,15 400,18 L400,80 L0,80 Z"
+                fill="url(#fcArea)"
+              />
+              <path
+                d="M0,65 C60,60 90,45 140,48 C190,51 220,25 270,30 C320,35 360,15 400,18"
+                fill="none"
+                stroke="#4F46E5"
+                strokeWidth="2.25"
+              />
+            </svg>
+            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>Simulated 30d activity</span>
+              <span>Fees paid: ${stats.fees.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Cashflow Mini KPI Panel */}
-        <div className="lg:col-span-5 grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-          <div className="flex flex-col justify-between">
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
-              Inflows
-            </div>
-            <div className="text-lg font-bold text-emerald-400">+${stats.deposits.toFixed(2)}</div>
-            <div className="text-[10px] text-slate-500">Deposits &amp; refunds</div>
+        {/* Wallets Card List */}
+        <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Accounts</h2>
+            <span className="text-[11px] text-slate-400">{wallets.length} active</span>
           </div>
-          <div className="flex flex-col justify-between border-x border-white/10 px-3">
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <ArrowUpRight className="h-3.5 w-3.5 text-rose-400" />
-              Outflows
-            </div>
-            <div className="text-lg font-bold text-white">${stats.transfers.toFixed(2)}</div>
-            <div className="text-[10px] text-slate-500">Transfers sent</div>
-          </div>
-          <div className="flex flex-col justify-between pl-1">
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <TrendingUp className="h-3.5 w-3.5 text-amber-400" />
-              Fees
-            </div>
-            <div className="text-lg font-bold text-amber-300">${stats.fees.toFixed(2)}</div>
-            <div className="text-[10px] text-slate-500">Platform fees</div>
+          <div className="space-y-2.5">
+            {wallets.map((w) => {
+              const selected = srcWalletId === w.id;
+              return (
+                <div
+                  key={w.id}
+                  onClick={() => setSrcWalletId(w.id)}
+                  className={`cursor-pointer rounded-xl border p-3.5 transition ${
+                    selected
+                      ? 'border-indigo-600 bg-indigo-50/40'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyAccountNumber(w.account_number);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-mono font-medium text-slate-700 hover:text-indigo-600"
+                    >
+                      {w.account_number}
+                      {copiedAcc === w.account_number ? (
+                        <Check className="h-3 w-3 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3 w-3 text-slate-400" />
+                      )}
+                    </button>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                        w.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                      }`}
+                    >
+                      {w.status} · SIMULATED
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">
+                      ${Number(w.available_balance).toFixed(2)}
+                    </span>
+                    <span className="text-[11px] text-slate-500">Ledger: ${Number(w.balance).toFixed(2)}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Interactive Navigation Tabs */}
-      <div className="flex items-center gap-1 border-b border-white/10 pb-px overflow-x-auto">
+      {/* Clean Tabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto">
         {(
           [
-            { id: 'overview', label: 'Transactions & Ledger' },
+            { id: 'overview', label: 'Transactions' },
             { id: 'transfer', label: 'Send Money' },
-            { id: 'beneficiaries', label: `Beneficiaries (${beneficiaries.length})` },
+            { id: 'beneficiaries', label: `Recipients (${beneficiaries.length})` },
             { id: 'disputes', label: 'Disputes' },
           ] as const
         ).map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? 'border-emerald-400 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             {tab.label}
@@ -461,17 +484,17 @@ export function CustomerDashboardView({
         ))}
       </div>
 
-      {/* Tab 1: Overview / Transactions */}
+      {/* Tab 1: Transactions Table */}
       {activeTab === 'overview' && (
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5 space-y-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search reference, description, status..."
-                className="w-full rounded-lg border border-white/10 bg-slate-950 py-2 pl-8 pr-3 text-xs text-white outline-none focus:border-emerald-500"
+                placeholder="Search reference or description..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs text-slate-900 outline-none focus:border-indigo-600 focus:bg-white"
               />
             </div>
             <div className="flex items-center gap-1.5 text-xs">
@@ -479,10 +502,10 @@ export function CustomerDashboardView({
                 <button
                   key={f}
                   onClick={() => setTypeFilter(f)}
-                  className={`rounded-lg px-2.5 py-1 capitalize transition ${
+                  className={`rounded-lg px-2.5 py-1 capitalize font-medium transition ${
                     typeFilter === f
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-white/5 text-slate-400 hover:text-white'
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   {f}
@@ -493,20 +516,20 @@ export function CustomerDashboardView({
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-white/10 text-slate-400">
+              <thead className="border-b border-slate-200 text-slate-500">
                 <tr>
-                  <th className="py-2.5 pr-4">Reference</th>
-                  <th className="py-2.5 pr-4">Type</th>
-                  <th className="py-2.5 pr-4">Amount</th>
-                  <th className="py-2.5 pr-4">Fee</th>
-                  <th className="py-2.5 pr-4">Status</th>
-                  <th className="py-2.5">Description</th>
+                  <th className="py-2.5 pr-4 font-medium">Reference</th>
+                  <th className="py-2.5 pr-4 font-medium">Type</th>
+                  <th className="py-2.5 pr-4 font-medium">Amount</th>
+                  <th className="py-2.5 pr-4 font-medium">Fee</th>
+                  <th className="py-2.5 pr-4 font-medium">Status</th>
+                  <th className="py-2.5 font-medium">Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-slate-100">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
                       No matching transactions found.
                     </td>
                   </tr>
@@ -515,32 +538,32 @@ export function CustomerDashboardView({
                     <tr
                       key={t.id}
                       onClick={() => setSelectedTx(t)}
-                      className="cursor-pointer transition-colors hover:bg-white/[0.04]"
+                      className="cursor-pointer transition-colors hover:bg-slate-50"
                     >
-                      <td className="py-3 pr-4 font-mono text-slate-200">{t.reference}</td>
-                      <td className="py-3 pr-4 capitalize text-slate-300">{t.type}</td>
+                      <td className="py-3 pr-4 font-mono font-medium text-slate-800">{t.reference}</td>
+                      <td className="py-3 pr-4 capitalize text-slate-600">{t.type}</td>
                       <td
-                        className={`py-3 pr-4 font-semibold ${
-                          t.type === 'deposit' || t.type === 'refund' ? 'text-emerald-400' : 'text-white'
+                        className={`py-3 pr-4 font-semibold tabular-nums ${
+                          t.type === 'deposit' || t.type === 'refund' ? 'text-emerald-600' : 'text-slate-900'
                         }`}
                       >
                         {t.type === 'deposit' || t.type === 'refund' ? '+' : '-'}${Number(t.amount).toFixed(2)}
                       </td>
-                      <td className="py-3 pr-4 text-slate-400">${Number(t.fee_amount).toFixed(2)}</td>
+                      <td className="py-3 pr-4 text-slate-500 tabular-nums">${Number(t.fee_amount).toFixed(2)}</td>
                       <td className="py-3 pr-4">
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase ${
                             t.status === 'completed'
-                              ? 'bg-emerald-500/15 text-emerald-300'
+                              ? 'bg-emerald-50 text-emerald-700'
                               : t.status === 'reversed'
-                              ? 'bg-amber-500/15 text-amber-300'
-                              : 'bg-slate-800 text-slate-300'
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           {t.status}
                         </span>
                       </td>
-                      <td className="py-3 text-slate-400">{t.description}</td>
+                      <td className="py-3 text-slate-500">{t.description}</td>
                     </tr>
                   ))
                 )}
@@ -555,22 +578,22 @@ export function CustomerDashboardView({
         <section className="grid gap-6 lg:grid-cols-12">
           <form
             onSubmit={handleTransfer}
-            className="lg:col-span-7 rounded-2xl border border-white/10 bg-slate-900/70 p-6 space-y-4"
+            className="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4"
           >
-            <h2 className="flex items-center gap-2 text-base font-semibold text-white">
-              <Send className="h-4 w-4 text-emerald-400" />
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <Send className="h-4 w-4 text-indigo-600" />
               Send Simulated Transfer
             </h2>
             {beneficiaries.length > 0 && (
               <div>
-                <div className="text-[11px] text-slate-400 mb-1.5">Quick-fill from saved beneficiaries:</div>
+                <div className="text-[11px] font-medium text-slate-500 mb-1.5">Saved recipients:</div>
                 <div className="flex flex-wrap gap-1.5">
                   {beneficiaries.map((b) => (
                     <button
                       key={b.id}
                       type="button"
                       onClick={() => setDestAccNum(b.account_number)}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-slate-200 hover:border-emerald-500/50"
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-700 hover:border-indigo-500"
                     >
                       {b.name} ({b.account_number})
                     </button>
@@ -579,11 +602,11 @@ export function CustomerDashboardView({
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-slate-300">Source Wallet</label>
+              <label className="block text-xs font-medium text-slate-700">From Account</label>
               <select
                 value={srcWalletId}
                 onChange={(e) => setSrcWalletId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
               >
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>
@@ -593,65 +616,63 @@ export function CustomerDashboardView({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300">Destination Account Number</label>
+              <label className="block text-xs font-medium text-slate-700">Destination Account Number</label>
               <input
                 value={destAccNum}
                 onChange={(e) => setDestAccNum(e.target.value)}
                 placeholder="e.g. FC-1001-0002"
-                className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-600"
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-slate-300">Amount (USD)</label>
+                <label className="block text-xs font-medium text-slate-700">Amount (USD)</label>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="25.00"
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-600"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300">Description</label>
+                <label className="block text-xs font-medium text-slate-700">Memo / Note</label>
                 <input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Invoice or note"
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500"
+                  placeholder="Invoice #104"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-600"
                 />
               </div>
             </div>
             <button
               disabled={submitting}
               type="submit"
-              className="w-full rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 hover:brightness-110 disabled:opacity-50"
+              className="w-full rounded-lg bg-indigo-600 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
             >
-              {submitting ? 'Processing Atomic Transfer...' : 'Submit Transfer'}
+              {submitting ? 'Processing...' : 'Submit Transfer'}
             </button>
           </form>
 
-          {/* Live Fee & Ledger Preview */}
-          <div className="lg:col-span-5 rounded-2xl border border-white/10 bg-slate-900/50 p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-white">Live Double-Entry Preview</h3>
+          <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-semibold text-slate-900">Double-Entry Summary</h3>
             <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between text-slate-400">
-                <span>Principal Amount</span>
-                <span className="text-white font-mono">
+              <div className="flex justify-between text-slate-500">
+                <span>Transfer Principal</span>
+                <span className="font-mono text-slate-900">
                   ${!Number.isNaN(parsedTransferAmount) && parsedTransferAmount > 0 ? parsedTransferAmount.toFixed(2) : '0.00'}
                 </span>
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Platform Fee (SYS-FEE-USD)</span>
-                <span className="text-amber-300 font-mono">${previewFee.toFixed(2)}</span>
+              <div className="flex justify-between text-slate-500">
+                <span>Platform Fee</span>
+                <span className="font-mono text-slate-700">${previewFee.toFixed(2)}</span>
               </div>
-              <div className="border-t border-white/10 pt-2.5 flex justify-between font-semibold text-white">
-                <span>Total Source Debit</span>
-                <span className="text-emerald-400 font-mono">${previewTotal.toFixed(2)}</span>
+              <div className="border-t border-slate-100 pt-2.5 flex justify-between font-semibold text-slate-900">
+                <span>Total Debit</span>
+                <span className="font-mono text-indigo-600">${previewTotal.toFixed(2)}</span>
               </div>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Every transfer generates an idempotency key, locks involved accounts in deterministic UUID order, and
-              verifies <code className="text-slate-300">SUM(DEBIT) == SUM(CREDIT)</code> in PostgreSQL before commit.
+              Protected by idempotency keys and deterministic PostgreSQL row-level locking.
             </p>
           </div>
         </section>
@@ -662,45 +683,45 @@ export function CustomerDashboardView({
         <section className="grid gap-6 lg:grid-cols-12">
           <form
             onSubmit={handleAddBeneficiary}
-            className="lg:col-span-4 rounded-2xl border border-white/10 bg-slate-900/70 p-5 space-y-3"
+            className="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3"
           >
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Users className="h-4 w-4 text-indigo-400" />
-              Add Beneficiary
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Users className="h-4 w-4 text-indigo-600" />
+              Add Recipient
             </h2>
             <input
               required
               value={beneficiaryName}
               onChange={(e) => setBeneficiaryName(e.target.value)}
               placeholder="Recipient Name"
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
             />
             <input
               required
               value={beneficiaryAcc}
               onChange={(e) => setBeneficiaryAcc(e.target.value)}
-              placeholder="Account Number (e.g. FC-1001-0002)"
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white"
+              placeholder="Account Number (FC-...)"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
             />
-            <button type="submit" className="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
-              Save Beneficiary
+            <button type="submit" className="w-full rounded-lg bg-indigo-600 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
+              Save Recipient
             </button>
           </form>
 
           <div className="lg:col-span-8 grid gap-3 sm:grid-cols-2">
             {beneficiaries.length === 0 ? (
-              <div className="sm:col-span-2 rounded-2xl border border-white/10 bg-slate-900/40 p-8 text-center text-xs text-slate-500">
-                No saved beneficiaries yet.
+              <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-400">
+                No saved recipients yet.
               </div>
             ) : (
               beneficiaries.map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/70 p-4"
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-white">{b.name}</div>
-                    <div className="text-xs font-mono text-slate-400">{b.account_number}</div>
+                    <div className="text-sm font-semibold text-slate-900">{b.name}</div>
+                    <div className="text-xs font-mono text-slate-500">{b.account_number}</div>
                   </div>
                   <button
                     type="button"
@@ -708,7 +729,7 @@ export function CustomerDashboardView({
                       setDestAccNum(b.account_number);
                       setActiveTab('transfer');
                     }}
-                    className="rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/25"
+                    className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
                   >
                     Pay
                   </button>
@@ -721,17 +742,17 @@ export function CustomerDashboardView({
 
       {/* Tab 4: Disputes */}
       {activeTab === 'disputes' && (
-        <section className="max-w-xl rounded-2xl border border-white/10 bg-slate-900/70 p-6">
+        <section className="max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <form onSubmit={handleRaiseDispute} className="space-y-3.5">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-white">
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
               Raise Transaction Dispute
             </h2>
             <select
               required
               value={disputeTxId}
               onChange={(e) => setDisputeTxId(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
             >
               <option value="">Select transaction...</option>
               {transactions.map((t) => (
@@ -744,7 +765,7 @@ export function CustomerDashboardView({
               value={disputeReason}
               onChange={(e) => setDisputeReason(e.target.value)}
               placeholder="Reason"
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
             />
             <textarea
               required
@@ -752,53 +773,55 @@ export function CustomerDashboardView({
               onChange={(e) => setDisputeDesc(e.target.value)}
               placeholder="Describe the issue..."
               rows={3}
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-xs text-white"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
             />
-            <button type="submit" className="w-full rounded-lg bg-amber-500 py-2.5 text-xs font-semibold text-slate-950 hover:bg-amber-400">
+            <button type="submit" className="w-full rounded-lg bg-amber-500 py-2.5 text-xs font-semibold text-white hover:bg-amber-600">
               Submit Dispute
             </button>
           </form>
         </section>
       )}
 
-      {/* Transaction Detail Drawer */}
+      {/* Slide-over Receipt Drawer */}
       {selectedTx && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md border-l border-white/10 bg-slate-950 p-6 flex flex-col justify-between">
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-xs">
+          <div className="w-full max-w-md border-l border-slate-200 bg-white p-6 shadow-2xl flex flex-col justify-between">
             <div className="space-y-5">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <div className="text-[11px] uppercase tracking-wider text-slate-400">Transaction Receipt</div>
-                  <div className="text-lg font-bold font-mono text-white">{selectedTx.reference}</div>
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Transaction Receipt
+                  </div>
+                  <div className="text-lg font-bold font-mono text-slate-900">{selectedTx.reference}</div>
                 </div>
-                <button onClick={() => setSelectedTx(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10">
+                <button onClick={() => setSelectedTx(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
                   <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Status</span>
-                  <span className="font-semibold uppercase text-emerald-400">{selectedTx.status}</span>
+                  <span className="text-slate-500">Status</span>
+                  <span className="font-semibold uppercase text-emerald-600">{selectedTx.status}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Type</span>
-                  <span className="capitalize text-white">{selectedTx.type}</span>
+                  <span className="text-slate-500">Type</span>
+                  <span className="capitalize text-slate-900">{selectedTx.type}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Amount</span>
-                  <span className="font-mono text-white">${Number(selectedTx.amount).toFixed(2)} USD</span>
+                  <span className="text-slate-500">Amount</span>
+                  <span className="font-mono font-semibold text-slate-900">${Number(selectedTx.amount).toFixed(2)} USD</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Fee</span>
-                  <span className="font-mono text-slate-300">${Number(selectedTx.fee_amount).toFixed(2)} USD</span>
+                  <span className="text-slate-500">Fee</span>
+                  <span className="font-mono text-slate-600">${Number(selectedTx.fee_amount).toFixed(2)} USD</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Description</span>
-                  <span className="text-slate-200">{selectedTx.description || '—'}</span>
+                  <span className="text-slate-500">Description</span>
+                  <span className="text-slate-700">{selectedTx.description || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Timestamp</span>
-                  <span className="text-slate-300">{new Date(selectedTx.created_at).toLocaleString()}</span>
+                  <span className="text-slate-500">Timestamp</span>
+                  <span className="text-slate-600">{new Date(selectedTx.created_at).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -808,7 +831,7 @@ export function CustomerDashboardView({
                 setSelectedTx(null);
                 setActiveTab('disputes');
               }}
-              className="w-full rounded-lg border border-amber-500/40 bg-amber-500/10 py-2.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20"
+              className="w-full rounded-lg border border-amber-300 bg-amber-50 py-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
             >
               Dispute This Transaction
             </button>
@@ -818,23 +841,23 @@ export function CustomerDashboardView({
 
       {/* Sandbox Deposit Modal */}
       {showDepositModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
           <form
             onSubmit={handleDeposit}
-            className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 space-y-4 shadow-2xl"
+            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 space-y-4 shadow-xl"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Add Sandbox Funds</h3>
-              <button type="button" onClick={() => setShowDepositModal(false)} className="text-slate-400 hover:text-white">
+              <h3 className="text-base font-semibold text-slate-900">Add Sandbox Funds</h3>
+              <button type="button" onClick={() => setShowDepositModal(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-xs text-slate-400">Credits simulated USD from SYS-SETTLEMENT-USD into your active wallet.</p>
+            <p className="text-xs text-slate-500">Credits simulated USD from SYS-SETTLEMENT-USD into your active wallet.</p>
             <input
               required
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
             />
             <div className="flex gap-2">
               {['100.00', '500.00', '1000.00'].map((preset) => (
@@ -842,7 +865,7 @@ export function CustomerDashboardView({
                   key={preset}
                   type="button"
                   onClick={() => setDepositAmount(preset)}
-                  className="flex-1 rounded-lg border border-white/10 bg-white/5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
+                  className="flex-1 rounded-lg border border-slate-200 bg-slate-50 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                 >
                   +${preset}
                 </button>
@@ -851,7 +874,7 @@ export function CustomerDashboardView({
             <button
               disabled={submitting}
               type="submit"
-              className="w-full rounded-lg bg-sky-500 py-2.5 text-xs font-semibold text-slate-950 hover:bg-sky-400"
+              className="w-full rounded-lg bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700"
             >
               {submitting ? 'Crediting...' : 'Confirm Sandbox Deposit'}
             </button>
