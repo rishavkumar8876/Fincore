@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { store } from '../src/store/store';
-import { CustomerDashboardView } from '../src/app/page';
+import { CustomerDashboardView } from '../src/components/CustomerDashboardView';
 
 describe('FinCore Customer Dashboard (Assessment 01)', () => {
   test('renders unauthenticated welcome state', () => {
